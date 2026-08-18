@@ -1,0 +1,57 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Warna korps -- hijau Kejaksaan (palet resmi, dicerahkan dari versi
+       awal atas permintaan agar tidak terlalu gelap. Tingkat kecerahan
+       dihitung lewat luminansi WCAG, bukan sekadar dicampur putih, supaya
+       kontras teks/tombol tetap terjamin -- lihat catatan di README. */
+    --color-korps-50: #d6e9ba;
+    --color-korps-100: #bbd1a2;
+    --color-korps-600: #699736;
+    --color-korps-700: #416f1a;
+    --color-korps-800: #3a6615;
+    --color-korps-900: #2c500e;
+}
+
+/*
+ * NFR 6.5: setiap keluaran AI diberi penanda visual yang membedakannya
+ * dari teks asli dokumen. Kelas ini dipakai pada ringkasan otomatis dan
+ * jawaban chat.
+ */
+@utility panel-ai {
+    border-left: 3px solid var(--color-violet-400);
+    background-image: linear-gradient(
+        to right,
+        --alpha(var(--color-violet-50) / 90%),
+        transparent 60%
+    );
+}
+
+@layer components {
+    /* Teks jawaban AI dirender dari Markdown sederhana. */
+    .isi-ai > p {
+        margin-block: 0.5rem;
+    }
+
+    .isi-ai > ul {
+        margin-block: 0.5rem;
+        padding-inline-start: 1.25rem;
+        list-style: disc;
+    }
+
+    .isi-ai > ol {
+        margin-block: 0.5rem;
+        padding-inline-start: 1.25rem;
+        list-style: decimal;
+    }
+
+    .isi-ai strong {
+        font-weight: 600;
+    }
+}

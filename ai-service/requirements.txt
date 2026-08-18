@@ -1,0 +1,31 @@
+# Layanan AI PustakaAI -- Python 3.12+
+# Seluruh paket di bawah tersedia sebagai wheel untuk CPython 3.14 di macOS arm64
+# (paket berlabel cp310-abi3 kompatibel maju ke 3.14).
+#
+# Versi dipatok minimum, bukan tepat, supaya perbaikan keamanan tetap masuk
+# tanpa perlu menyunting berkas ini setiap kali.
+
+fastapi>=0.121,<1.0
+uvicorn[standard]>=0.42,<1.0
+pydantic>=2.13,<3.0
+pydantic-settings>=2.13,<3.0
+
+# Basis data + vektor
+psycopg[binary,pool]>=3.3,<4.0
+pgvector>=0.4,<1.0
+
+# Ekstraksi PDF dan pembuatan sampul
+# (PyMuPDF menyimpan JPEG sendiri -- Pillow tidak diperlukan.)
+pymupdf>=1.28,<2.0
+
+# Embedding lokal (multibahasa, berjalan di CPU)
+sentence-transformers>=5.6,<6.0
+torch>=2.13,<3.0
+
+# Penyedia LLM
+# DeepSeek memakai antarmuka yang kompatibel dengan OpenAI, sehingga
+# dilayani oleh SDK openai sesuai anjuran dokumentasi resminya.
+openai>=2.0,<3.0
+anthropic>=0.75,<1.0
+
+python-dotenv>=1.2,<2.0
