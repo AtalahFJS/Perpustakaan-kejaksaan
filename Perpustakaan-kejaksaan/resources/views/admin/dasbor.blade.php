@@ -2,12 +2,18 @@
 @section('judul', 'Dasbor Administrasi')
 
 @section('konten')
+    <x-tautan-kembali :href="route('katalog.index')">Kembali ke Katalog</x-tautan-kembali>
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <h1 class="text-2xl font-semibold text-slate-900">Dasbor Administrasi</h1>
         <nav class="flex flex-wrap gap-2 text-sm">
+            {{-- Kategori dipindah ke Kelola Dokumen: mengelola kategori
+                 adalah bagian dari menata koleksi, bukan administrasi sistem
+                 seperti pengguna, audit, dan pemakaian AI. --}}
             <a href="{{ route('admin.pengguna') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Pengguna</a>
             <a href="{{ route('admin.audit') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Log Audit</a>
             <a href="{{ route('admin.pemakaian') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Pemakaian AI</a>
+            <a href="{{ route('admin.buku-tamu') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Buku Tamu</a>
             <a href="{{ route('admin.riwayat-login') }}" class="rounded-lg border border-slate-300 bg-white px-3 py-1.5 font-medium text-slate-700 hover:bg-slate-50">Riwayat Login</a>
         </nav>
     </div>

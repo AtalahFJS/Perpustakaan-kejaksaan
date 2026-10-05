@@ -22,6 +22,7 @@ from .embedding import embed_potongan, model as model_embedding
 from .konfigurasi import pengaturan
 from .llm import PenyediaLlm, buat_penyedia
 from .rag import tanya as jalankan_tanya
+from .rag import tanya_lintas as jalankan_tanya_lintas
 from .ringkasan import PembuatRingkasan
 
 logging.basicConfig(
@@ -63,7 +64,7 @@ async def daur_hidup(app: FastAPI):
 
 
 app = FastAPI(
-    title="PustakaAI — Layanan AI",
+    title="Perpustakaan Kejaksaan Tinggi Jawa Barat — Layanan AI",
     version="1.0.0",
     description=(
         "Ekstraksi dokumen, embedding lokal, ringkasan bertingkat, dan "
@@ -116,6 +117,20 @@ class TanggapanIngest(BaseModel):
 
 class PermintaanChat(BaseModel):
     document_id: int
+    question: str = Field(min_length=1, max_length=2000)
+    history: list[dict] = Field(default_factory=list)
+    user_id: int | None = None
+
+
+class PermintaanChatLintas(BaseModel):
+    """Tanya-jawab atas beberapa dokumen sekaligus.
+
+    `document_ids` wajib dikirim pemanggil dan sudah disaring menurut hak
+    akses penanya. Layanan ini tidak menyusun daftarnya sendiri, sehingga
+    tidak mungkin melebar ke dokumen yang tidak boleh dilihat.
+    """
+
+    document_ids: list[int] = Field(min_length=1, max_length=500)
     question: str = Field(min_length=1, max_length=2000)
     history: list[dict] = Field(default_factory=list)
     user_id: int | None = None
@@ -387,6 +402,62 @@ def buat_ringkasan(permintaan: PermintaanRingkasan) -> dict:
         conn.commit()
 
     return {"ringkasan": len(ringkasan_semua)}
+
+
+@app.post(
+    "/chat-lintas",
+    response_model=TanggapanChat,
+    dependencies=[Depends(periksa_token)],
+)
+def chat_lintas(permintaan: PermintaanChatLintas) -> TanggapanChat:
+    """Tanya-jawab menurut relevansi, mencakup beberapa dokumen."""
+    cfg = pengaturan()
+    llm = penyedia_llm()
+
+    with basisdata.koneksi() as conn:
+        # F-8.2 berlapis: sekalipun pemanggil sudah menyaring, dokumen yang
+        # tidak diizinkan diproses AI tetap dibuang di sini.
+        with conn.cursor() as kursor:
+            kursor.execute(
+                """
+                SELECT id FROM documents
+                WHERE id = ANY(%(ids)s) AND ai_allowed = TRUE AND deleted_at IS NULL
+                """,
+                {"ids": permintaan.document_ids},
+            )
+            boleh = [b["id"] for b in kursor.fetchall()]
+
+        hasil = jalankan_tanya_lintas(
+            conn,
+            llm,
+            boleh,
+            permintaan.question,
+            permintaan.history,
+            effort=cfg.llm_effort_chat,
+        )
+
+        _catat_pemakaian(
+            conn,
+            user_id=permintaan.user_id,
+            document_id=None,
+            operasi="chat_lintas",
+            model=hasil.model or cfg.llm_model,
+            tokens_in=hasil.tokens_in,
+            tokens_out=hasil.tokens_out,
+            biaya=llm.biaya(hasil.tokens_in, hasil.tokens_out),
+            latency_ms=hasil.latency_ms,
+        )
+        conn.commit()
+
+    return TanggapanChat(
+        jawaban=hasil.jawaban,
+        sitasi=hasil.sitasi,
+        ditemukan=hasil.ditemukan,
+        tokens_in=hasil.tokens_in,
+        tokens_out=hasil.tokens_out,
+        latency_ms=hasil.latency_ms,
+        model=hasil.model or cfg.llm_model,
+    )
 
 
 @app.post("/chat", response_model=TanggapanChat, dependencies=[Depends(periksa_token)])

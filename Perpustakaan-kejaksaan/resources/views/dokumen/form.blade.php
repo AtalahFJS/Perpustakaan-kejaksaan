@@ -3,6 +3,8 @@
 
 @section('konten')
     <div class="mx-auto max-w-3xl">
+        <x-tautan-kembali :href="route('dokumen.index')">Kembali ke Kelola Dokumen</x-tautan-kembali>
+
         <h1 class="mb-6 text-2xl font-semibold text-slate-900">
             {{ $dokumen->exists ? 'Ubah Dokumen' : 'Unggah Dokumen Baru' }}
         </h1>
@@ -60,6 +62,17 @@
                     </div>
 
                     <div>
+                        <label for="tanggal_terbit" class="block text-sm font-medium text-slate-700">Tanggal terbit</label>
+                        <input id="tanggal_terbit" name="tanggal_terbit" type="date"
+                               value="{{ old('tanggal_terbit', $dokumen->tanggal_terbit?->format('Y-m-d')) }}"
+                               class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-korps-600 focus:ring-korps-600 sm:text-sm">
+                        <p class="mt-1 text-xs text-slate-500">
+                            Dipakai mengurutkan &ldquo;Dokumen Terbaru&rdquo; di katalog.
+                        </p>
+                        @error('tanggal_terbit') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+                    </div>
+
+                    <div>
                         <label for="year" class="block text-sm font-medium text-slate-700">Tahun</label>
                         <input id="year" name="year" type="number" min="1900" max="{{ date('Y') + 1 }}"
                                value="{{ old('year', $dokumen->year) }}"
@@ -68,7 +81,27 @@
                     </div>
 
                     <div>
-                        <label for="category_id" class="block text-sm font-medium text-slate-700">Kategori</label>
+                        <div class="flex items-baseline justify-between gap-2">
+                            <label for="category_id" class="block text-sm font-medium text-slate-700">Kategori</label>
+                            {{-- type="button": panel ini berada di dalam <form> unggah,
+                                 jadi tombolnya tidak boleh ikut mengirim formulir. --}}
+                            {{-- Ikon menandai keadaan panel: "+" saat tertutup,
+                                 panah ke bawah saat terbuka. Pergantiannya
+                                 disetir aria-expanded yang sudah dikelola JS,
+                                 jadi penanda visual dan status bagi pembaca
+                                 layar tidak mungkin berbeda. --}}
+                            <button type="button" id="kategori-cepat-pemicu"
+                                    aria-expanded="false" aria-controls="kategori-cepat-panel"
+                                    class="group inline-flex items-center gap-1 text-xs font-semibold text-korps-700 hover:underline">
+                                <svg class="h-3.5 w-3.5 shrink-0 group-aria-expanded:hidden" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path d="M10 4.25a.75.75 0 01.75.75v4.25H15a.75.75 0 010 1.5h-4.25V15a.75.75 0 01-1.5 0v-4.25H5a.75.75 0 010-1.5h4.25V5a.75.75 0 01.75-.75z"/>
+                                </svg>
+                                <svg class="hidden h-3.5 w-3.5 shrink-0 group-aria-expanded:block" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                                    <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+                                </svg>
+                                Tambah kategori
+                            </button>
+                        </div>
                         <select id="category_id" name="category_id"
                                 class="mt-1 block w-full rounded-lg border-slate-300 shadow-sm focus:border-korps-600 focus:ring-korps-600 sm:text-sm">
                             <option value="">— pilih —</option>
@@ -78,22 +111,56 @@
                                 </option>
                             @endforeach
                         </select>
+
+                        {{-- Panel tambah kategori. Sengaja <div>, bukan <form>:
+                             formulir bersarang tidak sah di HTML. Kategori
+                             dikirim lewat fetch() supaya berkas PDF yang sudah
+                             dipilih tidak hilang -- lihat resources/js/kategori-cepat.js. --}}
+                        <div id="kategori-cepat-panel" hidden
+                             class="mt-2 rounded-lg border border-korps-100 bg-korps-50/60 p-3">
+                            <label for="kategori-cepat-nama" class="block text-xs font-medium text-slate-700">
+                                Nama kategori baru
+                            </label>
+                            <input id="kategori-cepat-nama" type="text" maxlength="255"
+                                   placeholder="mis. Surat Edaran"
+                                   class="mt-1 block w-full rounded-lg border-slate-300 text-sm shadow-sm focus:border-korps-600 focus:ring-korps-600">
+
+
+                            <p id="kategori-cepat-galat" hidden role="alert" class="mt-2 text-xs text-rose-600"></p>
+
+                            <div class="mt-3 flex items-center gap-3">
+                                <button type="button" id="kategori-cepat-simpan"
+                                        class="rounded-lg bg-korps-700 px-3 py-1.5 text-xs font-semibold text-white hover:bg-korps-800 disabled:opacity-60">
+                                    Simpan kategori
+                                </button>
+                                <button type="button" id="kategori-cepat-batal"
+                                        class="text-xs font-medium text-slate-600 hover:text-slate-900">
+                                    Batal
+                                </button>
+                            </div>
+                        </div>
+
+                        <p class="mt-2 text-xs text-slate-500">
+                            Untuk menyunting atau menghapus kategori, buka
+                            <a href="{{ route('admin.kategori.index') }}" class="text-korps-700 hover:underline">Kelola Kategori</a>.
+                        </p>
                     </div>
                 </div>
             </section>
 
-            {{-- Klasifikasi akses (F-8.1, F-8.3) --}}
+            {{-- Akses dokumen (F-8.1). Sejak 26 Agustus 2026 kembali dipilih
+                 per dokumen; kategori tidak lagi menentukannya. --}}
             <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
-                <h2 class="mb-1 text-sm font-semibold text-slate-900">Klasifikasi akses <span class="text-rose-600">*</span></h2>
+                <h2 class="mb-1 text-sm font-semibold text-slate-900">Akses dokumen <span class="text-rose-600">*</span></h2>
                 <p class="mb-3 text-xs text-slate-500">
-                    Menentukan siapa yang dapat melihat dokumen ini, dan apakah isinya boleh diproses asisten AI.
+                    Menentukan siapa yang dapat melihat dokumen ini di katalog.
+                    Tidak dipengaruhi kategori yang dipilih di atas.
                 </p>
 
                 <div class="space-y-2">
                     @foreach ([
-                        \App\Models\Document::KLASIFIKASI_PUBLIK => ['Publik', 'Dapat dilihat seluruh pengguna. Isi diproses AI (ringkasan & tanya jawab).'],
-                        \App\Models\Document::KLASIFIKASI_INTERNAL => ['Internal', 'Dapat dilihat seluruh pengguna terautentikasi. Isi diproses AI.'],
-                        \App\Models\Document::KLASIFIKASI_TERBATAS => ['Terbatas', 'Hanya pustakawan dan admin. Isi TIDAK PERNAH dikirim ke layanan AI — hanya masuk katalog.'],
+                        \App\Models\Document::KLASIFIKASI_PUBLIK => ['Publik', 'Terlihat semua orang, termasuk pengunjung tanpa login.'],
+                        \App\Models\Document::KLASIFIKASI_INTERNAL => ['Internal', 'Hanya pengguna yang sudah masuk — Pegawai dan Admin.'],
                     ] as $nilai => [$label, $penjelasan])
                         <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 has-checked:border-korps-600 has-checked:bg-korps-50">
                             <input type="radio" name="classification" value="{{ $nilai }}" required
@@ -107,14 +174,49 @@
                     @endforeach
                 </div>
                 @error('classification') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
+            </section>
+
+            {{-- Pemrosesan AI (F-8.2, F-8.3).
+
+                 Bagian ini hanya mengurus satu hal: boleh atau tidak isi
+                 dokumen dibaca asisten AI. Siapa yang dapat melihat dokumen
+                 ditentukan visibilitas kategori pada bagian di atas, bukan
+                 di sini -- dua urusan itu dulu tercampur dalam satu pilihan
+                 dan membingungkan saat pengunggahan. --}}
+            <section class="rounded-xl border border-slate-200 bg-white p-5 shadow-sm">
+                <h2 class="mb-1 text-sm font-semibold text-slate-900">Pemrosesan AI <span class="text-rose-600">*</span></h2>
+                <p class="mb-3 text-xs text-slate-500">
+                    Menentukan apakah isi dokumen ini boleh dibaca asisten AI untuk ringkasan
+                    dan tanya jawab. Tidak memengaruhi siapa yang dapat melihat dokumen &mdash;
+                    itu mengikuti kategori yang dipilih di atas.
+                </p>
+
+                @php $bolehAiSekarang = old('ai_allowed', $dokumen->exists ? (int) $dokumen->ai_allowed : 1); @endphp
+                <div class="space-y-2">
+                    @foreach ([
+                        1 => ['Boleh diproses AI', 'Isi dokumen dibaca asisten AI untuk membuat ringkasan dan menjawab pertanyaan.'],
+                        0 => ['Tidak boleh diproses AI', 'Isi TIDAK PERNAH dikirim ke layanan AI. Dokumen tetap dapat dibaca manusia, hanya tanpa fitur AI.'],
+                    ] as $nilai => [$label, $penjelasan])
+                        <label class="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3 hover:bg-slate-50 has-checked:border-korps-600 has-checked:bg-korps-50">
+                            <input type="radio" name="ai_allowed" value="{{ $nilai }}" required
+                                   @checked((int) $bolehAiSekarang === $nilai)
+                                   class="mt-0.5 border-slate-300 text-korps-600 focus:ring-korps-600">
+                            <span>
+                                <span class="block text-sm font-medium text-slate-900">{{ $label }}</span>
+                                <span class="block text-xs text-slate-500">{{ $penjelasan }}</span>
+                            </span>
+                        </label>
+                    @endforeach
+                </div>
+                @error('ai_allowed') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
 
                 {{-- F-8.3: konfirmasi eksplisit sebelum ingest dimulai --}}
                 <label class="mt-4 flex items-start gap-2.5 rounded-lg bg-amber-50 p-3 text-sm text-amber-900">
                     <input type="checkbox" name="konfirmasi_klasifikasi" value="1" required
                            class="mt-0.5 rounded border-amber-400 text-amber-600 focus:ring-amber-600">
                     <span>
-                        Saya mengonfirmasi klasifikasi di atas sudah benar dan memahami konsekuensinya
-                        terhadap pemrosesan AI serta visibilitas dokumen.
+                        Saya mengonfirmasi pilihan di atas sudah benar dan memahami konsekuensinya
+                        terhadap pemrosesan dokumen ini oleh AI.
                     </span>
                 </label>
                 @error('konfirmasi_klasifikasi') <p class="mt-1 text-xs text-rose-600">{{ $message }}</p> @enderror
@@ -160,3 +262,18 @@
         </form>
     </div>
 @endsection
+
+@push('skrip')
+    <script type="module">
+        window.PustakaAI.pasangKategoriCepat({
+            urlSimpan: @json(route('admin.kategori.simpan')),
+            idPemicu: 'kategori-cepat-pemicu',
+            idPanel: 'kategori-cepat-panel',
+            idNama: 'kategori-cepat-nama',
+            idSimpan: 'kategori-cepat-simpan',
+            idBatal: 'kategori-cepat-batal',
+            idGalat: 'kategori-cepat-galat',
+            idPilihan: 'category_id',
+        });
+    </script>
+@endpush

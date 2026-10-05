@@ -1,4 +1,4 @@
-{{-- F-5.5: pustakawan menyetujui atau menyembunyikan ringkasan. --}}
+{{-- F-5.5: admin menyetujui atau menyembunyikan ringkasan. --}}
 @props(['ringkasan'])
 
 <form method="POST" action="{{ route('ringkasan.setujui', $ringkasan) }}" class="shrink-0">

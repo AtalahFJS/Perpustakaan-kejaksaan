@@ -43,7 +43,7 @@ class AutentikasiTest extends TestCase
     /** F-1.4: akun nonaktif tidak dapat masuk. */
     public function test_akun_nonaktif_tidak_dapat_masuk(): void
     {
-        $pengguna = $this->buatPengguna(User::ROLE_PEMBACA, aktif: false);
+        $pengguna = $this->buatPengguna(User::ROLE_PEGAWAI, aktif: false);
 
         $this->post(route('masuk'), [
             'username' => $pengguna->username,
@@ -85,18 +85,18 @@ class AutentikasiTest extends TestCase
         $this->assertSame(1, LoginHistory::where('berhasil', true)->count());
     }
 
-    /** F-1.2: pembaca tidak boleh membuka halaman kelola dokumen. */
-    public function test_pembaca_ditolak_masuk_halaman_kelola_dokumen(): void
+    /** F-1.2: pegawai bukan pengelola konten, jadi tidak boleh membuka halaman kelola dokumen. */
+    public function test_pegawai_ditolak_masuk_halaman_kelola_dokumen(): void
     {
-        $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
+        $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->get(route('dokumen.index'))
             ->assertForbidden();
     }
 
-    /** F-1.2: pustakawan bukan admin, jadi tidak boleh membuka administrasi. */
-    public function test_pustakawan_ditolak_masuk_halaman_administrasi(): void
+    /** F-1.2: pegawai bukan admin, jadi tidak boleh membuka administrasi. */
+    public function test_pegawai_ditolak_masuk_halaman_administrasi(): void
     {
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->get(route('admin.dasbor'))
             ->assertForbidden();
     }

@@ -1,15 +1,21 @@
 @extends('layouts.app')
 @section('judul', 'Baca: '.$dokumen->title)
 @section('tanpa-bungkus', true)
+@section('tanpa-kepala', true)
 
 @section('konten')
-<div class="flex h-[calc(100vh-8rem)] flex-col">
+{{-- Setinggi layar penuh: bilah kepala dan kaki situs
+     disembunyikan lewat 'tanpa-kepala' di atas. Memakai h-dvh,
+     bukan h-screen, karena di Safari seluler 100vh ikut menghitung
+     bilah peramban sehingga dasar pembaca terpotong. --}}
+<div class="flex h-dvh flex-col">
 
     {{-- Bilah alat pembaca (F-4.2) --}}
     <div class="border-b border-slate-200 bg-white px-4 py-2 shadow-sm">
         <div class="mx-auto flex max-w-7xl flex-wrap items-center gap-x-4 gap-y-2">
 
             <a href="{{ route('katalog.show', $dokumen) }}"
+               title="Kembali ke detail dokumen" aria-label="Kembali ke detail dokumen"
                class="inline-flex items-center gap-1 text-sm text-slate-500 hover:text-korps-700">
                 <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
                     <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
@@ -98,6 +104,9 @@
         urlPenanda: @json(route('pembaca.penanda', $dokumen)),
         halamanAwal: {{ $halamanAwal }},
         csrf: @json(csrf_token()),
+        {{-- Dekoder WebAssembly PDF.js -- wajib agar dokumen hasil pindaian
+             (gambar JBIG2/JPEG 2000) tidak tampil sebagai halaman kosong. --}}
+        urlWasm: @json(asset('pdfjs-wasm/')),
     });
 </script>
 @endpush

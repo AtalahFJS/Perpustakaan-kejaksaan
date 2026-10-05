@@ -34,7 +34,7 @@ class ChatTest extends TestCase
     public function test_pertanyaan_menghasilkan_jawaban_dengan_sitasi(): void
     {
         $dokumen = $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $this->mock(KlienLayananAi::class, function ($tiruan) {
             $tiruan->shouldReceive('tanya')->once()->andReturn([
@@ -79,7 +79,7 @@ class ChatTest extends TestCase
                 ->andThrow(new RuntimeException('koneksi ditolak'));
         });
 
-        $respons = $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
+        $respons = $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->postJson(route('chat.tanya', $dokumen), ['pertanyaan' => 'Apa isinya?']);
 
         $respons->assertStatus(503);
@@ -95,7 +95,7 @@ class ChatTest extends TestCase
         config()->set('pustakaai.kuota.chat_per_hari', 2);
 
         $dokumen = $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         // Dua pemanggilan sudah terpakai hari ini.
         for ($i = 0; $i < 2; $i++) {
@@ -118,18 +118,18 @@ class ChatTest extends TestCase
             ->assertJsonPath('galat', 'Kuota tanya jawab harian Anda sudah habis. Silakan coba lagi besok.');
     }
 
-    /** F-8.2: dokumen terbatas tidak dapat ditanyakan sama sekali. */
-    public function test_dokumen_terbatas_tidak_dapat_ditanyakan(): void
+    /** F-8.2: dokumen tanpa izin AI tidak dapat ditanyakan sama sekali. */
+    public function test_dokumen_tanpa_izin_ai_tidak_dapat_ditanyakan(): void
     {
         $dokumen = $this->dokumenSiap();
-        $dokumen->update(['classification' => Document::KLASIFIKASI_TERBATAS]);
+        $dokumen->update(['ai_allowed' => false]);
 
         $this->mock(KlienLayananAi::class, function ($tiruan) {
             $tiruan->shouldNotReceive('tanya');
         });
 
-        // Bahkan bagi pustakawan yang boleh melihatnya, fitur tanya ditutup.
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        // Bahkan bagi admin yang boleh melihatnya, fitur tanya ditutup.
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
             ->postJson(route('chat.tanya', $dokumen), ['pertanyaan' => 'Apa isinya?'])
             ->assertForbidden();
     }
@@ -138,7 +138,7 @@ class ChatTest extends TestCase
     public function test_umpan_balik_tersimpan(): void
     {
         $dokumen = $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $sesi = $pembaca->chatSessions()->create(['document_id' => $dokumen->id]);
         $pesan = $sesi->messages()->create(['role' => 'assistant', 'content' => 'jawaban']);
@@ -154,8 +154,8 @@ class ChatTest extends TestCase
     public function test_umpan_balik_pengguna_lain_ditolak(): void
     {
         $dokumen = $this->dokumenSiap();
-        $pemilik = $this->buatPengguna(User::ROLE_PEMBACA);
-        $orangLain = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pemilik = $this->buatPengguna(User::ROLE_PEGAWAI);
+        $orangLain = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $sesi = $pemilik->chatSessions()->create(['document_id' => $dokumen->id]);
         $pesan = $sesi->messages()->create(['role' => 'assistant', 'content' => 'jawaban']);

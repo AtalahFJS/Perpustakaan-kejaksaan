@@ -2,15 +2,25 @@
 @section('judul', 'Kelola Dokumen')
 
 @section('konten')
+    <x-tautan-kembali :href="route('katalog.index')">Kembali ke Katalog</x-tautan-kembali>
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-900">Kelola Dokumen</h1>
             <p class="mt-1 text-sm text-slate-500">Unggah, sunting metadata, dan pantau status pemrosesan.</p>
         </div>
-        <a href="{{ route('dokumen.create') }}"
-           class="rounded-lg bg-korps-700 px-4 py-2 text-sm font-semibold text-white hover:bg-korps-800 transition">
-            + Unggah Dokumen
-        </a>
+        <div class="flex flex-wrap items-center gap-2">
+            {{-- Kategori berada di sini, bukan di Administrasi: menata
+                 kategori adalah bagian dari mengelola koleksi dokumen. --}}
+            <a href="{{ route('admin.kategori.index') }}"
+               class="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50 transition">
+                Kelola Kategori
+            </a>
+            <a href="{{ route('dokumen.create') }}"
+               class="rounded-lg bg-korps-700 px-4 py-2 text-sm font-semibold text-white hover:bg-korps-800 transition">
+                + Unggah Dokumen
+            </a>
+        </div>
     </div>
 
     <form method="GET" class="mb-4 flex flex-wrap gap-2">
@@ -63,7 +73,13 @@
                                 @endif
                             </td>
                             <td class="px-4 py-3"><x-lencana-klasifikasi :dokumen="$item" /></td>
-                            <td class="px-4 py-3"><x-lencana-status :dokumen="$item" /></td>
+                            <td class="px-4 py-3"><x-lencana-status :dokumen="$item" />
+                                @if ($item->tersangkut())
+                                    <span class="mt-1 block text-xs font-medium text-amber-700"
+                                          title="Tertahan sejak {{ $item->updated_at->diffForHumans() }}">
+                                        Tertahan di antrean
+                                    </span>
+                                @endif</td>
                             <td class="px-4 py-3 text-xs text-slate-500">
                                 {{ $item->created_at?->format('d/m/Y H:i') }}<br>
                                 <span class="text-slate-400">{{ $item->uploader?->name ?? '—' }}</span>
@@ -87,8 +103,11 @@
                                             </form>
                                         @endif
                                     @else
-                                        @if ($item->status === \App\Models\Document::STATUS_FAILED && $item->bolehDiprosesAi())
-                                            {{-- F-2.10 --}}
+                                        @if (($item->status === \App\Models\Document::STATUS_FAILED || $item->tersangkut()) && $item->bolehDiprosesAi())
+                                            {{-- F-2.10. Juga ditampilkan untuk dokumen yang
+                                                 tertahan di antrean: pekerjaannya bisa hilang
+                                                 tanpa berstatus "gagal", dan tanpa tombol ini
+                                                 dokumen tersebut mustahil dipulihkan admin. --}}
                                             <form method="POST" action="{{ route('dokumen.ingest-ulang', $item) }}">
                                                 @csrf
                                                 <button class="rounded-md px-2 py-1 text-xs font-medium text-sky-700 hover:bg-sky-50">

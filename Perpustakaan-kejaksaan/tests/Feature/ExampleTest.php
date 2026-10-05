@@ -10,13 +10,23 @@ class ExampleTest extends TestCase
     use RefreshDatabase;
 
     /**
-     * F-4.3: seluruh isi perpustakaan berada di balik autentikasi, sehingga
-     * tamu yang membuka akar situs diarahkan ke halaman masuk.
+     * Sejak pembaruan 21 Agustus 2026: katalog publik dapat diakses tanpa
+     * masuk (F-8.4 revisi), tetapi katalog internal (/katalog) tetap
+     * mewajibkan autentikasi.
      */
-    public function test_tamu_diarahkan_ke_halaman_masuk(): void
+    public function test_tamu_disambut_gerbang_pilihan(): void
     {
-        $this->get('/')->assertRedirect(route('katalog.index'));
+        // Sejak 26 Agustus 2026 halaman depan bukan pengalihan, melainkan
+        // gerbang: tamu atau pegawai.
+        $this->get('/')->assertOk()->assertSee('Tamu')->assertSee('Pegawai');
         $this->get(route('katalog.index'))->assertRedirect(route('masuk'));
+    }
+
+    public function test_pengguna_masuk_diarahkan_ke_katalog_internal(): void
+    {
+        $this->actingAs($this->buatPengguna())
+            ->get('/')
+            ->assertRedirect(route('katalog.index'));
     }
 
     public function test_halaman_masuk_dapat_dibuka(): void

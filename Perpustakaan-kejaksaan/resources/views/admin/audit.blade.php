@@ -2,6 +2,8 @@
 @section('judul', 'Log Audit')
 
 @section('konten')
+    <x-tautan-kembali :href="route('admin.dasbor')">Kembali ke Administrasi</x-tautan-kembali>
+
     <div class="mb-6 flex flex-wrap items-center justify-between gap-3">
         <div>
             <h1 class="text-2xl font-semibold text-slate-900">Log Audit</h1>

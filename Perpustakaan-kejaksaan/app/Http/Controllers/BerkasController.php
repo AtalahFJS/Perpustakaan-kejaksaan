@@ -50,7 +50,7 @@ class BerkasController extends Controller
 
     /**
      * F-4.7: unduh berkas asli. Dokumen terbatas hanya dapat diunduh
-     * pustakawan -- diatur di DocumentPolicy::download().
+     * admin -- diatur di DocumentPolicy::download().
      */
     public function unduh(Document $document): StreamedResponse
     {

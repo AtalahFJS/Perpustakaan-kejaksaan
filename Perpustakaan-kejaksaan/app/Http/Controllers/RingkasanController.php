@@ -10,13 +10,13 @@ use Illuminate\Http\Request;
 use Throwable;
 
 /**
- * Peninjauan ringkasan oleh pustakawan (PRD 5.5: F-5.5, F-5.6).
+ * Peninjauan ringkasan oleh admin (PRD 5.5: F-5.5, F-5.6).
  */
 class RingkasanController extends Controller
 {
     public function __construct(private readonly KlienLayananAi $ai) {}
 
-    /** F-5.5: pustakawan menyunting ringkasan sebelum tampil. */
+    /** F-5.5: admin menyunting ringkasan sebelum tampil. */
     public function update(Request $request, Summary $summary): RedirectResponse
     {
         $this->authorize('update', $summary->document);

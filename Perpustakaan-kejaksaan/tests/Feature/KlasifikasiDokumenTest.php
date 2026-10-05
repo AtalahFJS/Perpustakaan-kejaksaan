@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Jobs\ProsesIngestDokumen;
+use App\Models\Category;
 use App\Models\Document;
 use App\Models\User;
 use App\Services\KlienLayananAi;
@@ -13,19 +14,26 @@ use Mockery;
 use Tests\TestCase;
 
 /**
- * Menguji aturan klasifikasi dan kerahasiaan dokumen -- PRD 5.8.
- * Ini bagian paling sensitif dari sistem, karena menyangkut apakah isi
- * dokumen rahasia dapat bocor ke layanan pihak ketiga (risiko R1).
+ * Menguji aturan akses dan kerahasiaan dokumen -- PRD 5.8. Ini bagian
+ * paling sensitif dari sistem, karena menyangkut apakah isi dokumen
+ * rahasia dapat bocor ke layanan pihak ketiga (risiko R1).
+ *
+ * Pembaruan 26 Agustus 2026: dua urusan yang dulu menyatu tetap terpisah,
+ * tetapi keduanya kini dipilih per dokumen saat unggah.
+ *   - Siapa yang boleh melihat -> kolom classification (Publik/Internal).
+ *   - Boleh diproses AI        -> kolom ai_allowed.
+ * Kategori tidak lagi ikut menentukan akses.
  */
 class KlasifikasiDokumenTest extends TestCase
 {
     use RefreshDatabase;
 
-    private function buatDokumen(string $klasifikasi, array $tambahan = []): Document
+    private function buatDokumen(string $akses, array $tambahan = []): Document
     {
         return Document::create(array_merge([
-            'title' => 'Dokumen '.$klasifikasi,
-            'classification' => $klasifikasi,
+            'title' => 'Dokumen '.$akses,
+            'classification' => $akses,
+            'ai_allowed' => true,
             'file_path' => 'dokumen/uji.pdf',
             'file_name' => 'uji.pdf',
             'file_size' => 1024,
@@ -33,52 +41,92 @@ class KlasifikasiDokumenTest extends TestCase
         ], $tambahan));
     }
 
-    /** F-8.4: pembaca tidak boleh melihat dokumen terbatas di katalog. */
-    public function test_pembaca_tidak_melihat_dokumen_terbatas_di_katalog(): void
+    // --- Akses: ditentukan per dokumen ------------------------------------
+
+    /** F-8.4: dokumen internal tidak terlihat tanpa login. */
+    public function test_pengunjung_tidak_melihat_dokumen_internal(): void
     {
-        $this->buatDokumen(Document::KLASIFIKASI_PUBLIK, ['title' => 'Dokumen Publik']);
-        $this->buatDokumen(Document::KLASIFIKASI_TERBATAS, ['title' => 'Dokumen Terbatas']);
+        // Sengaja SATU kategori untuk keduanya: membuktikan yang menentukan
+        // akses adalah dokumennya sendiri, bukan kategorinya.
+        $kategori = Category::create(['name' => 'Campuran', 'slug' => 'campuran']);
 
-        $respons = $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
-            ->get(route('katalog.index'));
+        $this->buatDokumen(Document::KLASIFIKASI_PUBLIK, ['title' => 'Dokumen Terbuka', 'category_id' => $kategori->id]);
+        $this->buatDokumen(Document::KLASIFIKASI_INTERNAL, ['title' => 'Dokumen Dalaman', 'category_id' => $kategori->id]);
 
-        $respons->assertOk();
-        $respons->assertSee('Dokumen Publik');
-        $respons->assertDontSee('Dokumen Terbatas');
+        $this->tamuTerdaftar()->get(route('publik.katalog.index'))
+            ->assertOk()
+            ->assertSee('Dokumen Terbuka')
+            ->assertDontSee('Dokumen Dalaman');
     }
 
-    /** F-8.4: pustakawan melihat seluruh klasifikasi. */
-    public function test_pustakawan_melihat_dokumen_terbatas(): void
+    /** F-8.4: pegawai melihat dokumen internal, sama seperti admin. */
+    public function test_pegawai_melihat_dokumen_internal(): void
     {
-        $this->buatDokumen(Document::KLASIFIKASI_TERBATAS, ['title' => 'Dokumen Terbatas']);
+        $this->buatDokumen(Document::KLASIFIKASI_INTERNAL, ['title' => 'Dokumen Dalaman']);
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->get(route('katalog.index'))
             ->assertOk()
-            ->assertSee('Dokumen Terbatas');
+            ->assertSee('Dokumen Dalaman');
     }
 
-    /** F-8.4: akses langsung ke detail dokumen terbatas ditolak. */
-    public function test_pembaca_ditolak_membuka_detail_dokumen_terbatas(): void
+    /** Akses dipilih manual saat unggah, apa pun kategorinya. */
+    public function test_akses_dipilih_manual_saat_unggah(): void
     {
-        $dokumen = $this->buatDokumen(Document::KLASIFIKASI_TERBATAS);
+        Queue::fake();
+        $kategori = Category::create(['name' => 'Apa Saja', 'slug' => 'apa-saja']);
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
-            ->get(route('katalog.show', $dokumen))
-            ->assertForbidden();
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
+            ->post(route('dokumen.store'), [
+                'title' => 'Pilihan Sendiri',
+                'category_id' => $kategori->id,
+                'classification' => Document::KLASIFIKASI_INTERNAL,
+                'ai_allowed' => '1',
+                'konfirmasi_klasifikasi' => '1',
+                'berkas' => $this->berkasPdfPalsu(),
+            ])
+            ->assertRedirect(route('dokumen.index'));
+
+        $this->assertSame(
+            Document::KLASIFIKASI_INTERNAL,
+            Document::where('title', 'Pilihan Sendiri')->first()->classification,
+        );
     }
 
-    /** F-4.3: berkas hanya dapat diambil oleh pengguna yang berhak. */
-    public function test_berkas_dokumen_terbatas_tidak_dapat_diambil_pembaca(): void
+    /** Unggahan tanpa pilihan akses ditolak -- tidak ada nilai diam-diam. */
+    public function test_unggahan_tanpa_pilihan_akses_ditolak(): void
     {
-        $dokumen = $this->buatDokumen(Document::KLASIFIKASI_TERBATAS);
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
+            ->post(route('dokumen.store'), [
+                'title' => 'Tanpa Akses',
+                'ai_allowed' => '1',
+                'konfirmasi_klasifikasi' => '1',
+                'berkas' => $this->berkasPdfPalsu(),
+            ])
+            ->assertSessionHasErrors('classification');
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
-            ->get(route('berkas.lihat', $dokumen))
-            ->assertForbidden();
+        $this->assertDatabaseCount('documents', 0);
     }
 
-    /** F-4.3: tamu tidak dapat mengakses berkas sama sekali. */
+    /** Mengganti nama kategori tidak boleh menyentuh akses dokumennya. */
+    public function test_mengubah_kategori_tidak_mengubah_akses_dokumen(): void
+    {
+        $kategori = Category::create(['name' => 'Berubah', 'slug' => 'b']);
+        $this->buatDokumen(Document::KLASIFIKASI_PUBLIK, ['title' => 'Tetap Terbuka', 'category_id' => $kategori->id]);
+
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
+            ->put(route('admin.kategori.ubah', $kategori), ['name' => 'Nama Baru'])
+            ->assertRedirect();
+
+        $this->assertSame(
+            Document::KLASIFIKASI_PUBLIK,
+            Document::where('title', 'Tetap Terbuka')->first()->classification,
+        );
+
+        $this->tamuTerdaftar()->get(route('publik.katalog.index'))->assertSee('Tetap Terbuka');
+    }
+
+    /** F-4.3: tamu tidak dapat mengakses berkas jalur internal sama sekali. */
     public function test_tamu_tidak_dapat_mengakses_berkas(): void
     {
         $dokumen = $this->buatDokumen(Document::KLASIFIKASI_PUBLIK);
@@ -87,15 +135,18 @@ class KlasifikasiDokumenTest extends TestCase
             ->assertRedirect(route('masuk'));
     }
 
-    /** F-8.2: dokumen terbatas tidak pernah masuk antrean pemrosesan AI. */
-    public function test_dokumen_terbatas_tidak_dimasukkan_ke_antrean_ingest(): void
+    // --- Pemrosesan AI: ditentukan ai_allowed ------------------------------
+
+    /** F-8.2: dokumen tanpa izin AI tidak pernah masuk antrean pemrosesan. */
+    public function test_dokumen_tanpa_izin_ai_tidak_dimasukkan_ke_antrean_ingest(): void
     {
         Queue::fake();
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
             ->post(route('dokumen.store'), [
                 'title' => 'Dokumen Rahasia',
-                'classification' => Document::KLASIFIKASI_TERBATAS,
+                'classification' => Document::KLASIFIKASI_PUBLIK,
+                'ai_allowed' => '0',
                 'konfirmasi_klasifikasi' => '1',
                 'berkas' => $this->berkasPdfPalsu(),
             ])
@@ -109,15 +160,16 @@ class KlasifikasiDokumenTest extends TestCase
         );
     }
 
-    /** F-8.2: dokumen internal tetap diproses seperti biasa. */
-    public function test_dokumen_internal_dimasukkan_ke_antrean_ingest(): void
+    /** F-8.2: dokumen berizin AI tetap diproses seperti biasa. */
+    public function test_dokumen_berizin_ai_dimasukkan_ke_antrean_ingest(): void
     {
         Queue::fake();
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
             ->post(route('dokumen.store'), [
                 'title' => 'Pedoman Internal',
-                'classification' => Document::KLASIFIKASI_INTERNAL,
+                'classification' => Document::KLASIFIKASI_PUBLIK,
+                'ai_allowed' => '1',
                 'konfirmasi_klasifikasi' => '1',
                 'berkas' => $this->berkasPdfPalsu(),
             ]);
@@ -126,13 +178,13 @@ class KlasifikasiDokumenTest extends TestCase
     }
 
     /**
-     * F-8.2: pengaman lapis kedua -- bila klasifikasi berubah menjadi
-     * terbatas setelah pekerjaan masuk antrean, pekerjaan tetap menolak
-     * memanggil layanan AI.
+     * F-8.2: pengaman lapis kedua -- bila izin AI dicabut setelah pekerjaan
+     * masuk antrean, pekerjaan tetap menolak memanggil layanan AI.
      */
-    public function test_pekerjaan_ingest_menolak_dokumen_terbatas(): void
+    public function test_pekerjaan_ingest_menolak_dokumen_tanpa_izin_ai(): void
     {
-        $dokumen = $this->buatDokumen(Document::KLASIFIKASI_TERBATAS, [
+        $dokumen = $this->buatDokumen(Document::KLASIFIKASI_INTERNAL, [
+            'ai_allowed' => false,
             'status' => Document::STATUS_UPLOADED,
         ]);
 
@@ -144,13 +196,36 @@ class KlasifikasiDokumenTest extends TestCase
         $this->assertSame(Document::STATUS_KATALOG_SAJA, $dokumen->fresh()->status);
     }
 
-    /** F-8.3: klasifikasi wajib dikonfirmasi sebelum dokumen tersimpan. */
-    public function test_unggahan_ditolak_tanpa_konfirmasi_klasifikasi(): void
+    /** Dokumen publik pun boleh dilarang diproses AI -- dua urusan terpisah. */
+    public function test_dokumen_publik_dapat_dilarang_diproses_ai(): void
     {
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        Queue::fake();
+        $publik = Category::create(['name' => 'Publik', 'slug' => 'p']);
+
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
+            ->post(route('dokumen.store'), [
+                'title' => 'Terbuka Tanpa AI',
+                'category_id' => $publik->id,
+                'classification' => Document::KLASIFIKASI_PUBLIK,
+                'ai_allowed' => '0',
+                'konfirmasi_klasifikasi' => '1',
+                'berkas' => $this->berkasPdfPalsu(),
+            ]);
+
+        $dokumen = Document::where('title', 'Terbuka Tanpa AI')->first();
+
+        Queue::assertNotPushed(ProsesIngestDokumen::class);
+        $this->assertSame(Document::KLASIFIKASI_PUBLIK, $dokumen->classification);
+        $this->assertFalse($dokumen->bolehDiprosesAi());
+    }
+
+    /** F-8.3: pilihan pemrosesan AI wajib dikonfirmasi sebelum tersimpan. */
+    public function test_unggahan_ditolak_tanpa_konfirmasi(): void
+    {
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
             ->post(route('dokumen.store'), [
                 'title' => 'Tanpa Konfirmasi',
-                'classification' => Document::KLASIFIKASI_PUBLIK,
+                'ai_allowed' => '1',
                 'berkas' => $this->berkasPdfPalsu(),
             ])
             ->assertSessionHasErrors('konfirmasi_klasifikasi');
@@ -159,10 +234,10 @@ class KlasifikasiDokumenTest extends TestCase
     }
 
     /**
-     * Mengubah dokumen menjadi terbatas harus membuang seluruh turunan AI
-     * yang sudah dibuat, supaya isinya tidak lagi dapat ditanyakan.
+     * Mencabut izin AI harus membuang seluruh turunan AI yang sudah dibuat,
+     * supaya isinya tidak lagi dapat ditanyakan.
      */
-    public function test_mengubah_menjadi_terbatas_menghapus_potongan_dan_ringkasan(): void
+    public function test_mencabut_izin_ai_menghapus_potongan_dan_ringkasan(): void
     {
         $dokumen = $this->buatDokumen(Document::KLASIFIKASI_INTERNAL);
         $dokumen->chunks()->create([
@@ -176,10 +251,11 @@ class KlasifikasiDokumenTest extends TestCase
             'content' => 'ringkasan',
         ]);
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
             ->put(route('dokumen.update', $dokumen), [
                 'title' => $dokumen->title,
-                'classification' => Document::KLASIFIKASI_TERBATAS,
+                'classification' => Document::KLASIFIKASI_PUBLIK,
+                'ai_allowed' => '0',
                 'konfirmasi_klasifikasi' => '1',
             ])
             ->assertRedirect();

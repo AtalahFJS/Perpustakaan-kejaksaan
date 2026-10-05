@@ -2,12 +2,24 @@
 @section('judul', 'Kelola Pengguna')
 
 @section('konten')
+    <x-tautan-kembali :href="route('admin.dasbor')">Kembali ke Administrasi</x-tautan-kembali>
+
     <h1 class="mb-6 text-2xl font-semibold text-slate-900">Kelola Pengguna</h1>
 
     {{-- F-1.4: admin menambah pengguna --}}
-    <details class="mb-6 rounded-xl border border-slate-200 bg-white shadow-sm">
-        <summary class="cursor-pointer px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50">
-            + Tambah pengguna baru
+    {{-- kelas "group" wajib di <details>: atribut open ada di sini,
+     dan varian group-open: menuntut .group sendiri yang [open]. --}}
+    <details class="group mb-6 rounded-xl border border-slate-200 bg-white shadow-sm">
+        {{-- Sama seperti pemicu di Kelola Kategori: tanda "+" hanya tampil
+             selagi panel tertutup, lalu berganti panah saat terbuka. --}}
+        <summary class="flex cursor-pointer list-none items-center gap-1.5 px-5 py-3 text-sm font-semibold text-slate-900 hover:bg-slate-50 [&::-webkit-details-marker]:hidden">
+            <svg class="h-3.5 w-3.5 shrink-0 group-open:hidden" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path d="M10 4.25a.75.75 0 01.75.75v4.25H15a.75.75 0 010 1.5h-4.25V15a.75.75 0 01-1.5 0v-4.25H5a.75.75 0 010-1.5h4.25V5a.75.75 0 01.75-.75z"/>
+            </svg>
+            <svg class="hidden h-3.5 w-3.5 shrink-0 group-open:block" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
+                <path fill-rule="evenodd" d="M5.23 7.21a.75.75 0 011.06.02L10 11.17l3.71-3.94a.75.75 0 111.08 1.04l-4.25 4.5a.75.75 0 01-1.08 0l-4.25-4.5a.75.75 0 01.02-1.06z" clip-rule="evenodd"/>
+            </svg>
+            Tambah pengguna baru
         </summary>
         <form method="POST" action="{{ route('admin.pengguna.simpan') }}" class="border-t border-slate-100 p-5">
             @csrf

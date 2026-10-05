@@ -6,7 +6,10 @@ use App\Models\Document;
 use App\Models\User;
 
 /**
- * F-8.4: visibilitas dokumen mengikuti klasifikasi dan peran pengguna.
+ * F-8.4: visibilitas dokumen mengikuti klasifikasi, visibilitas kategori,
+ * dan peran pengguna. Sejak pembaruan 21 Agustus 2026, kewenangan
+ * mengelola konten (dulu milik Pustakawan) sepenuhnya berada di Admin;
+ * Pegawai kini setara pembaca dengan akses tambahan ke konten internal.
  */
 class DocumentPolicy
 {
@@ -17,11 +20,7 @@ class DocumentPolicy
 
     public function view(User $user, Document $document): bool
     {
-        return in_array(
-            $document->classification,
-            $user->klasifikasiYangBolehDilihat(),
-            true,
-        );
+        return $document->bolehDilihatOleh($user);
     }
 
     /** F-4.1: membaca isi dokumen di peramban. */
@@ -33,16 +32,12 @@ class DocumentPolicy
     /**
      * F-4.7: unduh berkas asli hanya untuk dokumen publik/internal.
      * Dokumen terbatas hanya boleh dibaca di peramban, tidak diunduh --
-     * kecuali oleh pustakawan yang mengelolanya.
+     * kecuali oleh admin yang mengelolanya.
      */
     public function download(User $user, Document $document): bool
     {
         if (! $this->view($user, $document)) {
             return false;
-        }
-
-        if ($document->classification === Document::KLASIFIKASI_TERBATAS) {
-            return $user->isPustakawan();
         }
 
         return true;
@@ -56,18 +51,18 @@ class DocumentPolicy
 
     public function create(User $user): bool
     {
-        return $user->isPustakawan();
+        return $user->isAdmin();
     }
 
     public function update(User $user, Document $document): bool
     {
-        return $user->isPustakawan();
+        return $user->isAdmin();
     }
 
-    /** F-2.7: soft delete oleh pustakawan. */
+    /** F-2.7: soft delete oleh admin. */
     public function delete(User $user, Document $document): bool
     {
-        return $user->isPustakawan();
+        return $user->isAdmin();
     }
 
     /** F-2.7: hanya admin yang dapat menghapus permanen. */
@@ -78,6 +73,6 @@ class DocumentPolicy
 
     public function restore(User $user, Document $document): bool
     {
-        return $user->isPustakawan();
+        return $user->isAdmin();
     }
 }

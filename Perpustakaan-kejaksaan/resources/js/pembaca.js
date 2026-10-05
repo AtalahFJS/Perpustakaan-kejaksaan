@@ -13,7 +13,11 @@ import workerUrl from 'pdfjs-dist/build/pdf.worker.mjs?url';
 pdfjsLib.GlobalWorkerOptions.workerSrc = workerUrl;
 
 export function pasangPembaca(opsi) {
-    const { urlBerkas, urlPenanda, halamanAwal, csrf } = opsi;
+    const { urlBerkas, urlPenanda, halamanAwal, csrf, urlWasm } = opsi;
+
+    // PDF.js menyambung nama berkas langsung ke belakang nilai ini
+    // (mis. "jbig2.wasm"), jadi garis miring penutup wajib ada.
+    const wasmUrl = urlWasm ? (urlWasm.endsWith('/') ? urlWasm : `${urlWasm}/`) : undefined;
 
     const wadah = document.getElementById('wadah-halaman');
     const statusEl = document.getElementById('status-pembaca');
@@ -40,6 +44,9 @@ export function pasangPembaca(opsi) {
             pdf = await pdfjsLib.getDocument({
                 url: urlBerkas,
                 withCredentials: true,
+                // Tanpa ini, dokumen hasil pindaian (gambar JBIG2/JPEG 2000)
+                // gagal di-decode dan halamannya tampil putih kosong.
+                wasmUrl,
             }).promise;
         } catch (galat) {
             // NFR 6.5: pesan galat dalam bahasa yang dipahami pengguna.
@@ -158,9 +165,11 @@ export function pasangPembaca(opsi) {
         simpanPenanda(n);
     }
 
-    /** F-4.5: penanda halaman terakhir dibaca per pengguna. */
+    /** F-4.5: penanda halaman terakhir dibaca per pengguna (tidak tersedia di pembaca publik). */
     let jedaSimpan;
     function simpanPenanda(n) {
+        if (!urlPenanda) return;
+
         clearTimeout(jedaSimpan);
         jedaSimpan = setTimeout(() => {
             fetch(urlPenanda, {

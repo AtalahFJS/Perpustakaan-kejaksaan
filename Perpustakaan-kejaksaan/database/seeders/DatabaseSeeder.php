@@ -16,10 +16,12 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         // --- Akun demo untuk tiap persona (PRD bagian 4) ---
+        // Sejak pembaruan 21 Agustus 2026: hanya dua peran setelah login.
+        // Admin mengelola konten; Pegawai adalah pembaca dengan akses
+        // tambahan ke kategori internal (lihat User::ROLE_PEGAWAI).
         $akun = [
             ['Administrator Sistem', 'admin', 'admin@pustakaai.local', User::ROLE_ADMIN],
-            ['Pustakawan Utama', 'pustakawan', 'pustakawan@pustakaai.local', User::ROLE_PUSTAKAWAN],
-            ['Pembaca Umum', 'pembaca', 'pembaca@pustakaai.local', User::ROLE_PEMBACA],
+            ['Pegawai Kejaksaan', 'pegawai', 'pegawai@pustakaai.local', User::ROLE_PEGAWAI],
         ];
 
         foreach ($akun as [$nama, $username, $email, $peran]) {
@@ -37,26 +39,31 @@ class DatabaseSeeder extends Seeder
         }
 
         // --- Kategori awal ---
+        // 'internal' berarti hanya pengguna yang sudah masuk (Pegawai/Admin)
+        // yang melihatnya di katalog; pengunjung publik tidak melihatnya
+        // sama sekali (pembaruan 21 Agustus 2026).
         $kategori = [
-            'Peraturan Perundang-undangan' => ['Undang-Undang', 'Peraturan Pemerintah', 'Peraturan Kejaksaan'],
-            'Pedoman & Petunjuk Teknis' => ['Pedoman Kerja', 'Standar Operasional Prosedur'],
-            'Putusan & Yurisprudensi' => [],
-            'Kajian & Jurnal' => ['Jurnal Hukum', 'Hasil Penelitian'],
-            'Laporan Kelembagaan' => [],
+            'Peraturan Perundang-undangan',
+            'Undang-Undang',
+            'Peraturan Pemerintah',
+            'Peraturan Kejaksaan',
+            'Pedoman & Petunjuk Teknis',
+            'Pedoman Kerja',
+            'Standar Operasional Prosedur',
+            'Putusan & Yurisprudensi',
+            'Kajian & Jurnal',
+            'Jurnal Hukum',
+            'Hasil Penelitian',
+            'Laporan Kelembagaan',
         ];
 
-        foreach ($kategori as $induk => $anakSemua) {
-            $indukModel = Category::updateOrCreate(
-                ['slug' => Str::slug($induk)],
-                ['name' => $induk, 'parent_id' => null],
+        // Kategori kini pengelompokan murni: tanpa visibilitas, dan
+        // urutan tampilnya mengikuti susunan daftar di atas.
+        foreach ($kategori as $nomor => $nama) {
+            Category::updateOrCreate(
+                ['slug' => Str::slug($nama)],
+                ['name' => $nama, 'urutan' => $nomor + 1],
             );
-
-            foreach ($anakSemua as $anak) {
-                Category::updateOrCreate(
-                    ['slug' => Str::slug($anak)],
-                    ['name' => $anak, 'parent_id' => $indukModel->id],
-                );
-            }
         }
 
         // --- Tag umum ---

@@ -7,6 +7,15 @@
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
 
+    /* Serif kop surat -- dipakai untuk judul beranda publik & tajuk katalog,
+       meniru kepala surat dinas (bukan tipografi SaaS generik). Instrument
+       Sans tetap dipakai untuk isi/antarmuka. */
+    --font-serif: 'Newsreader', ui-serif, Georgia, Cambria, 'Times New Roman', serif;
+
+    /* Utilitas "mesin tik" -- nomor aksesi/katalog & metadata dokumen,
+       menggemakan dokumen dinas lama yang diketik mesin ketik. */
+    --font-mono: ui-monospace, 'SF Mono', 'Cascadia Code', 'Roboto Mono', Menlo, Consolas, monospace;
+
     /* Warna korps -- hijau Kejaksaan (palet resmi, dicerahkan dari versi
        awal atas permintaan agar tidak terlalu gelap. Tingkat kecerahan
        dihitung lewat luminansi WCAG, bukan sekadar dicampur putih, supaya
@@ -17,6 +26,23 @@
     --color-korps-700: #416f1a;
     --color-korps-800: #3a6615;
     --color-korps-900: #2c500e;
+
+    /* Kuningan (brass) -- diambil dari kuning lambang Adhyaksa (timbangan,
+       pedang, padi & bintang). Dipakai sebagai aksen kop surat & label
+       katalog, bukan warna teks utama -- lihat catatan kontras per varian:
+       brass-700 lolos AA di atas paper-50, brass-600 hanya untuk elemen
+       besar/dekoratif, brass-400 hanya di atas korps-900. */
+    --color-brass-400: #d4af6a;
+    --color-brass-600: #a3782f;
+    --color-brass-700: #7c5b23;
+
+    /* Nada kertas -- pengganti abu SaaS generik supaya beranda katalog
+       terasa seperti arsip dokumen, bukan dasbor. */
+    --color-paper-50: #f7f4ec;
+    --color-paper-100: #efe9d8;
+    /* Nada garis: dipakai untuk tepi kartu dan garis pemisah, menggantikan
+       abu-abu bawaan yang terlihat dingin di atas latar kertas. */
+    --color-paper-200: #e3dac2;
 }
 
 /*

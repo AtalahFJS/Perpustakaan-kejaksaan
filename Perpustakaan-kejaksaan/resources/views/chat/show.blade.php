@@ -7,8 +7,12 @@
 
     {{-- Kepala --}}
     <div class="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-xl border border-slate-200 bg-white px-4 py-3 shadow-sm">
-        <a href="{{ route('katalog.show', $dokumen) }}" class="text-slate-400 hover:text-korps-700">
-            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
+        {{-- Tautan ini hanya ikon karena kepala halaman sempit; tanpa
+             aria-label pembaca layar hanya membacakan alamatnya. --}}
+        <a href="{{ route('katalog.show', $dokumen) }}" title="Kembali ke detail dokumen"
+           aria-label="Kembali ke detail dokumen"
+           class="text-slate-400 hover:text-korps-700">
+            <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
                 <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
             </svg>
         </a>

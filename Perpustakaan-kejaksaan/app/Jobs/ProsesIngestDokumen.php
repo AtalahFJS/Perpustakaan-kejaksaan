@@ -75,7 +75,7 @@ class ProsesIngestDokumen implements ShouldQueue
 
     /**
      * F-2.9 / F-2.10: kegagalan tercatat dengan pesan yang dapat dibaca
-     * pustakawan, dan dokumen dapat diproses ulang dari antarmuka.
+     * admin, dan dokumen dapat diproses ulang dari antarmuka.
      */
     public function failed(Throwable $galat): void
     {

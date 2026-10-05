@@ -62,7 +62,7 @@ class HalamanTest extends TestCase
     public function test_katalog_menampilkan_dokumen_dan_ringkasan(): void
     {
         $dokumen = $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $this->actingAs($pembaca)
             ->get(route('katalog.index'))
@@ -83,15 +83,15 @@ class HalamanTest extends TestCase
     public function test_pencarian_katalog_menyaring_hasil(): void
     {
         $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $this->actingAs($pembaca)
-            ->get(route('katalog.index', ['q' => 'Penanganan']))
+            ->get(route('katalog.semua', ['q' => 'Penanganan']))
             ->assertOk()
             ->assertSee('Pedoman Penanganan Perkara');
 
         $this->actingAs($pembaca)
-            ->get(route('katalog.index', ['q' => 'katakuncitidakada']))
+            ->get(route('katalog.semua', ['q' => 'katakuncitidakada']))
             ->assertOk()
             ->assertSee('Tidak ada dokumen yang cocok.');
     }
@@ -100,7 +100,7 @@ class HalamanTest extends TestCase
     {
         $dokumen = $this->dokumenSiap();
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
+        $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->get(route('pembaca.show', $dokumen))
             ->assertOk()
             ->assertSee('Baca');
@@ -110,7 +110,7 @@ class HalamanTest extends TestCase
     public function test_halaman_chat_menampilkan_riwayat_dan_sitasi(): void
     {
         $dokumen = $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $sesi = $pembaca->chatSessions()->create(['document_id' => $dokumen->id]);
         $sesi->messages()->create([
@@ -138,19 +138,19 @@ class HalamanTest extends TestCase
         $dokumen = $this->dokumenSiap();
         $dokumen->update(['status' => Document::STATUS_PROCESSING]);
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
+        $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->get(route('chat.show', $dokumen))
             ->assertForbidden();
     }
 
-    public function test_halaman_pustakawan_dapat_dibuka(): void
+    public function test_halaman_kelola_dokumen_admin_dapat_dibuka(): void
     {
         $this->dokumenSiap();
-        $pustakawan = $this->buatPengguna(User::ROLE_PUSTAKAWAN);
+        $admin = $this->buatPengguna(User::ROLE_ADMIN);
 
-        $this->actingAs($pustakawan)->get(route('dokumen.index'))->assertOk();
-        $this->actingAs($pustakawan)->get(route('dokumen.create'))->assertOk();
-        $this->actingAs($pustakawan)
+        $this->actingAs($admin)->get(route('dokumen.index'))->assertOk();
+        $this->actingAs($admin)->get(route('dokumen.create'))->assertOk();
+        $this->actingAs($admin)
             ->get(route('dokumen.edit', Document::first()))
             ->assertOk();
     }
@@ -187,7 +187,7 @@ class HalamanTest extends TestCase
     public function test_akses_dokumen_tercatat_di_log_audit(): void
     {
         $dokumen = $this->dokumenSiap();
-        $pembaca = $this->buatPengguna(User::ROLE_PEMBACA);
+        $pembaca = $this->buatPengguna(User::ROLE_PEGAWAI);
 
         $this->actingAs($pembaca)->get(route('katalog.show', $dokumen));
 
@@ -204,13 +204,13 @@ class HalamanTest extends TestCase
         $dokumen = $this->dokumenSiap();
         $dokumen->summaries()->update(['is_approved' => false]);
 
-        $this->actingAs($this->buatPengguna(User::ROLE_PEMBACA))
+        $this->actingAs($this->buatPengguna(User::ROLE_PEGAWAI))
             ->get(route('katalog.show', $dokumen))
             ->assertOk()
             ->assertDontSee('Ringkasan singkat dokumen uji.');
 
-        // Pustakawan tetap melihatnya untuk ditinjau.
-        $this->actingAs($this->buatPengguna(User::ROLE_PUSTAKAWAN))
+        // Admin tetap melihatnya untuk ditinjau.
+        $this->actingAs($this->buatPengguna(User::ROLE_ADMIN))
             ->get(route('katalog.show', $dokumen))
             ->assertOk()
             ->assertSee('Ringkasan singkat dokumen uji.');

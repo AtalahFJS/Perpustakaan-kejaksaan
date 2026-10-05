@@ -7,7 +7,24 @@ use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
 
 abstract class TestCase extends BaseTestCase
 {
-    protected function buatPengguna(string $peran = User::ROLE_PEMBACA, bool $aktif = true): User
+    /**
+     * Melewati gerbang buku tamu, untuk uji yang menyasar katalog publik
+     * dan bukan gerbangnya sendiri.
+     */
+    protected function tamuTerdaftar(): static
+    {
+        $tamu = \App\Models\BukuTamu::create([
+            'nama' => 'Tamu Uji',
+            'no_telp' => '081234567890',
+            'domisili' => 'Bandung',
+        ]);
+
+        $this->withSession([\App\Models\BukuTamu::KUNCI_SESI => $tamu->id]);
+
+        return $this;
+    }
+
+    protected function buatPengguna(string $peran = User::ROLE_PEGAWAI, bool $aktif = true): User
     {
         static $urutan = 0;
         $urutan++;

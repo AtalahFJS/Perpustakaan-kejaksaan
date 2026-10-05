@@ -1,4 +1,4 @@
-# PustakaAI — Sistem Perpustakaan Digital dengan Asisten AI
+# Perpustakaan Kejaksaan Tinggi Jawa Barat — Sistem Perpustakaan Digital dengan Asisten AI
 
 Implementasi dari **PRD v1.0 — Sistem Perpustakaan Digital dengan Asisten AI**
 (`PRD-Perpustakaan-Digital-AI.pdf`).

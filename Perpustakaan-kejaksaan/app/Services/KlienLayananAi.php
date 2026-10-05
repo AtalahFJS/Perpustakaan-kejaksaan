@@ -88,7 +88,38 @@ class KlienLayananAi
         return $respons->json();
     }
 
-    /** F-5.6: pustakawan memicu pembuatan ulang ringkasan. */
+    /**
+     * Tanya-jawab menurut relevansi, mencakup beberapa dokumen sekaligus.
+     *
+     * Daftar dokumen disusun pemanggil dari yang benar-benar boleh dilihat
+     * penanya; layanan AI tidak pernah melebarkannya sendiri.
+     *
+     * @param  list<int>  $documentIds
+     */
+    public function tanyaLintas(
+        array $documentIds,
+        string $pertanyaan,
+        array $riwayat = [],
+        ?int $userId = null,
+    ): array {
+        $respons = $this->permintaan((int) config('pustakaai.ai.timeout_chat'))
+            ->post('/chat-lintas', [
+                'document_ids' => array_values($documentIds),
+                'question' => $pertanyaan,
+                'history' => $riwayat,
+                'user_id' => $userId,
+            ]);
+
+        if ($respons->failed()) {
+            throw new RuntimeException(
+                'Layanan AI tidak dapat menjawab: '.$this->pesanGalat($respons->json(), $respons->body())
+            );
+        }
+
+        return $respons->json();
+    }
+
+    /** F-5.6: admin memicu pembuatan ulang ringkasan. */
     public function buatUlangRingkasan(int $documentId): array
     {
         $respons = $this->permintaan((int) config('pustakaai.ai.timeout'))

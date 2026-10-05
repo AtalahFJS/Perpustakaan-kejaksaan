@@ -16,13 +16,13 @@ use Illuminate\View\View;
 
 /**
  * Modul manajemen dokumen (PRD 5.2). Seluruh aksi di sini
- * membutuhkan peran pustakawan atau admin.
+ * membutuhkan peran admin.
  */
 class DokumenController extends Controller
 {
     public function __construct(private readonly PencatatAudit $audit) {}
 
-    /** Daftar kelola untuk pustakawan, termasuk status pemrosesan (F-2.9). */
+    /** Daftar kelola untuk admin, termasuk status pemrosesan (F-2.9). */
     public function index(Request $request): View
     {
         $dokumen = Document::query()
@@ -80,12 +80,12 @@ class DokumenController extends Controller
 
         $this->audit->catatDokumen(PencatatAudit::DOKUMEN_UNGGAH, $dokumen);
 
-        // F-8.2: dokumen terbatas tidak diproses AI sama sekali.
+        // F-8.2: dokumen yang tidak diizinkan tidak diproses AI sama sekali.
         if ($dokumen->bolehDiprosesAi()) {
             ProsesIngestDokumen::dispatch($dokumen->id);
             $pesan = 'Dokumen tersimpan dan sedang diproses di latar belakang.';
         } else {
-            $pesan = 'Dokumen tersimpan. Karena berklasifikasi terbatas, dokumen hanya masuk katalog dan tidak diproses AI.';
+            $pesan = 'Dokumen tersimpan. Karena tidak diizinkan diproses AI, dokumen hanya masuk katalog.';
         }
 
         return redirect()->route('dokumen.index')->with('sukses', $pesan);
@@ -99,12 +99,12 @@ class DokumenController extends Controller
         ]);
     }
 
-    /** F-2.6: pustakawan dapat mengedit metadata dan mengganti berkas. */
+    /** F-2.6: admin dapat mengedit metadata dan mengganti berkas. */
     public function update(Request $request, Document $document): RedirectResponse
     {
         $data = $this->validasi($request, wajibBerkas: false);
 
-        $klasifikasiLama = $document->classification;
+        $bolehAiSebelumnya = $document->bolehDiprosesAi();
         $document->fill($data['metadata']);
 
         $berkasBaru = $request->file('berkas');
@@ -123,13 +123,13 @@ class DokumenController extends Controller
             $document->page_count = null;
         }
 
-        // Berkas berganti, atau dokumen berubah dari terbatas menjadi
-        // tidak terbatas -- keduanya menuntut pemrosesan ulang.
+        // Berkas berganti, atau dokumen yang tadinya dilarang kini diizinkan
+        // diproses AI -- keduanya menuntut pemrosesan ulang.
         $perluIngestUlang = $berkasBaru
-            || ($klasifikasiLama === Document::KLASIFIKASI_TERBATAS && $document->bolehDiprosesAi());
+            || (! $bolehAiSebelumnya && $document->bolehDiprosesAi());
 
         if (! $document->bolehDiprosesAi()) {
-            // Berubah menjadi terbatas -- buang seluruh turunan AI.
+            // Izin AI dicabut -- buang seluruh turunan AI.
             $document->chunks()->delete();
             $document->summaries()->delete();
             $document->status = Document::STATUS_KATALOG_SAJA;
@@ -219,7 +219,11 @@ class DokumenController extends Controller
             'publisher' => ['nullable', 'string', 'max:255'],
             'year' => ['nullable', 'integer', 'min:1900', 'max:'.(date('Y') + 1)],
             'category_id' => ['nullable', 'exists:categories,id'],
+            // F-8.1: siapa yang boleh melihat -- dipilih per dokumen.
             'classification' => ['required', Rule::in(array_keys(Document::SEMUA_KLASIFIKASI))],
+            // F-8.2: boleh-tidaknya isi dokumen dibaca AI -- urusan terpisah.
+            'ai_allowed' => ['required', 'boolean'],
+            'tanggal_terbit' => ['nullable', 'date'],
             'isbn' => ['nullable', 'string', 'max:32'],
             'document_number' => ['nullable', 'string', 'max:255'],
             'language' => ['nullable', 'string', 'max:10'],
@@ -230,11 +234,12 @@ class DokumenController extends Controller
             'konfirmasi_klasifikasi' => ['accepted'],
         ], [
             'title.required' => 'Judul dokumen wajib diisi.',
-            'classification.required' => 'Klasifikasi akses wajib dipilih.',
+            'classification.required' => 'Pilih dulu siapa yang boleh melihat dokumen ini.',
+            'ai_allowed.required' => 'Pilih dulu apakah dokumen boleh diproses AI.',
             'berkas.required' => 'Berkas PDF wajib diunggah.',
             'berkas.mimes' => 'Berkas harus berformat PDF.',
             'berkas.max' => 'Ukuran berkas melebihi '.config('pustakaai.unggah.maks_mb').' MB.',
-            'konfirmasi_klasifikasi.accepted' => 'Anda harus mengonfirmasi klasifikasi dokumen sebelum menyimpan.',
+            'konfirmasi_klasifikasi.accepted' => 'Anda harus mengonfirmasi pilihan pemrosesan AI sebelum menyimpan.',
         ]);
 
         return [

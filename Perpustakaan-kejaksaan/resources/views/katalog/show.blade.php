@@ -2,12 +2,7 @@
 @section('judul', $dokumen->title)
 
 @section('konten')
-    <a href="{{ route('katalog.index') }}" class="mb-4 inline-flex items-center gap-1 text-sm text-slate-500 hover:text-korps-700">
-        <svg class="h-4 w-4" viewBox="0 0 20 20" fill="currentColor">
-            <path fill-rule="evenodd" d="M12.79 5.23a.75.75 0 01-.02 1.06L8.832 10l3.938 3.71a.75.75 0 11-1.04 1.08l-4.5-4.25a.75.75 0 010-1.08l4.5-4.25a.75.75 0 011.06.02z" clip-rule="evenodd"/>
-        </svg>
-        Kembali ke katalog
-    </a>
+    <x-tautan-kembali :href="route('katalog.index')">Kembali ke Katalog</x-tautan-kembali>
 
     <div class="grid gap-6 lg:grid-cols-3">
 
@@ -46,9 +41,9 @@
                             </svg>
                             Tanya Dokumen Ini
                         </a>
-                    @elseif ($dokumen->classification === \App\Models\Document::KLASIFIKASI_TERBATAS)
+                    @elseif (! $dokumen->bolehDiprosesAi())
                         <p class="rounded-lg bg-rose-50 px-3 py-2 text-xs text-rose-800">
-                            Dokumen berklasifikasi terbatas tidak diproses asisten AI.
+                            Dokumen ini tidak diizinkan diproses asisten AI.
                             Isinya tidak pernah dikirim ke layanan pihak ketiga.
                         </p>
                     @else

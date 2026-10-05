@@ -8,7 +8,6 @@ use App\Models\Summary;
 use App\Services\PencatatAudit;
 use Illuminate\Contracts\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -22,46 +21,96 @@ class KatalogController extends Controller
      * F-3.1 pencarian metadata, F-3.2 pencarian teks penuh,
      * F-3.4 filter, F-3.5 pengurutan.
      */
+    /**
+     * Beranda katalog: etalase saja -- sorotan dokumen terbaru, yang banyak
+     * dicari, dan telusur per kategori.
+     *
+     * Daftar lengkap dokumen sengaja TIDAK ada di sini (pembaruan 26 Agustus
+     * 2026). Menumpuk seluruh koleksi di beranda membuatnya panjang dan sulit
+     * dipindai; daftar penuh beserta pencarian dan penyaringnya kini berdiri
+     * di halaman tersendiri -- lihat semua().
+     */
     public function index(Request $request): View
+    {
+        return view('katalog.index', [
+            'dokumenTerbaru' => Document::query()
+                ->with('category')
+                ->withJumlahDilihat()
+                ->terlihatOleh($request->user())
+                // Urut tanggal rilis dokumen, bukan waktu unggahnya.
+                ->orderByRaw('tanggal_terbit DESC NULLS LAST')
+                ->latest()
+                ->take(10)
+                ->get(),
+
+            // "Banyak dicari" memakai penghitung yang sudah ada: berapa ORANG
+            // berbeda pernah membuka dokumen (lihat scopeWithJumlahDilihat).
+            'dokumenBanyakDilihat' => Document::query()
+                ->with('category')
+                ->withJumlahDilihat()
+                ->terlihatOleh($request->user())
+                // whereHas, bukan having(): alias subkueri tidak dapat
+                // dipakai di HAVING pada PostgreSQL (hanya di ORDER BY).
+                ->whereHas('viewLogs')
+                ->orderByDesc('dilihat_count')
+                ->take(6)
+                ->get(),
+
+            // Kategori tampil untuk semua; yang disaring hak akses adalah
+            // hitungan dokumennya.
+            'kategoriUtama' => Category::query()
+                ->withCount(['documents' => fn (Builder $q) => $q->terlihatOleh($request->user())])
+                ->terurut()
+                ->get(),
+        ]);
+    }
+
+    /**
+     * Daftar lengkap dokumen beserta pencarian, penyaring, dan pengurutan
+     * (F-3.1 s.d. F-3.5). Halaman inilah tujuan tombol "Lihat semua" serta
+     * kotak pencarian di beranda.
+     */
+    public function semua(Request $request): View
     {
         $kueri = trim((string) $request->query('q', ''));
         $urutan = $request->query('urut', $kueri !== '' ? 'relevansi' : 'terbaru');
 
         $kueriDokumen = Document::query()
             ->with(['category', 'tags'])
+            ->withJumlahDilihat()
             ->terlihatOleh($request->user())
             ->when($request->filled('kategori'), fn (Builder $q) => $q->where('category_id', $request->integer('kategori')))
             ->when($request->filled('tahun'), fn (Builder $q) => $q->where('year', $request->integer('tahun')))
-            ->when($request->filled('penulis'), fn (Builder $q) => $q->where('author', 'ilike', '%'.$request->query('penulis').'%'))
             ->when($request->filled('klasifikasi'), fn (Builder $q) => $q->where('classification', $request->query('klasifikasi')))
-            ->when($kueri !== '', fn (Builder $q) => $this->terapkanPencarian($q, $kueri));
+            ->when($kueri !== '', fn (Builder $q) => $q->pencarian($kueri));
 
-        $dokumen = $this->terapkanUrutan($kueriDokumen, $urutan, $kueri)
-            ->paginate(config('pustakaai.katalog.per_halaman'))
-            ->withQueryString();
-
-        return view('katalog.index', [
-            'dokumen' => $dokumen,
+        return view('katalog.semua', [
+            'dokumen' => $this->terapkanUrutan($kueriDokumen, $urutan, $kueri)
+                ->paginate(config('pustakaai.katalog.per_halaman'))
+                ->withQueryString(),
             'kueri' => $kueri,
             'urutan' => $urutan,
-            'kategoriSemua' => Category::orderBy('name')->get(),
-            'tahunSemua' => $this->tahunTersedia($request),
+            'sedangMenyaring' => $request->hasAny(['q', 'kategori', 'tahun', 'klasifikasi']),
+            'kategoriSemua' => Category::query()->terurut()->get(),
+            'tahunSemua' => Document::query()
+                ->terlihatOleh($request->user())
+                ->whereNotNull('year')
+                ->distinct()
+                ->orderByDesc('year')
+                ->pluck('year')
+                ->all(),
         ]);
     }
 
-    /**
-     * F-3.7: halaman detail -- metadata, sampul, ringkasan,
-     * tombol baca dan tanya.
-     */
     public function show(Request $request, Document $document): View
     {
         $this->authorize('view', $document);
 
         $document->load(['category', 'tags', 'uploader']);
 
-        // F-5.5: hanya ringkasan yang disetujui yang tampil bagi pembaca.
+        // F-5.5: hanya ringkasan yang disetujui yang tampil bagi non-admin.
         $ringkasan = $document->summaries()
-            ->when(! $request->user()->isPustakawan(), fn ($q) => $q->where('is_approved', true))
+            ->when(! $request->user()->isAdmin(), fn ($q) => $q->where('is_approved', true))
             ->orderBy('urutan')
             ->get()
             ->groupBy('type');
@@ -80,24 +129,6 @@ class KatalogController extends Controller
         ]);
     }
 
-    /**
-     * Pencarian gabungan: teks penuh pada metadata (F-3.1) dan pada isi
-     * dokumen lewat tabel chunks (F-3.2). Keduanya memakai indeks GIN.
-     */
-    private function terapkanPencarian(Builder $kueriDokumen, string $kata): Builder
-    {
-        return $kueriDokumen->where(function (Builder $q) use ($kata) {
-            $q->whereRaw("search_vector @@ plainto_tsquery('simple', ?)", [$kata])
-                ->orWhere('title', 'ilike', '%'.$kata.'%')
-                ->orWhere('author', 'ilike', '%'.$kata.'%')
-                ->orWhereExists(function ($sub) use ($kata) {
-                    $sub->select(DB::raw(1))
-                        ->from('chunks')
-                        ->whereColumn('chunks.document_id', 'documents.id')
-                        ->whereRaw("chunks.search_vector @@ plainto_tsquery('simple', ?)", [$kata]);
-                });
-        });
-    }
 
     private function terapkanUrutan(Builder $kueri, string $urutan, string $kata): Builder
     {

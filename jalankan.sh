@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 #
-# Menjalankan seluruh komponen PustakaAI untuk pengembangan lokal:
+# Menjalankan seluruh komponen Perpustakaan Kejaksaan Tinggi Jawa Barat
+# untuk pengembangan lokal:
 #   - PostgreSQL + Redis (layanan latar)
 #   - Layanan AI (FastAPI, porta 8001)
 #   - Aplikasi web (Laravel, porta 8000)
@@ -76,7 +77,7 @@ PID_SEMUA+=($!)
 sleep 2
 biru ""
 biru "══════════════════════════════════════════════════"
-biru "  PustakaAI siap:  http://127.0.0.1:8000"
+biru "  Perpustakaan Kejaksaan Tinggi Jawa Barat siap:  http://127.0.0.1:8000"
 biru ""
 biru "  admin      / rahasia123   (Administrator)"
 biru "  pustakawan / rahasia123   (Pustakawan)"

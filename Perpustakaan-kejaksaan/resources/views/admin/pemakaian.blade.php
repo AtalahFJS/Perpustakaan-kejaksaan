@@ -2,6 +2,8 @@
 @section('judul', 'Pemakaian AI')
 
 @section('konten')
+    <x-tautan-kembali :href="route('admin.dasbor')">Kembali ke Administrasi</x-tautan-kembali>
+
     <h1 class="mb-1 text-2xl font-semibold text-slate-900">Laporan Pemakaian AI</h1>
     <p class="mb-6 text-sm text-slate-500">
         Pemakaian token dan estimasi biaya per periode. Biaya dihitung dari tarif model yang tercatat saat pemanggilan.

@@ -15,6 +15,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->alias([
             'peran' => App\Http\Middleware\PastikanPeran::class,
             'aktif' => App\Http\Middleware\PastikanAkunAktif::class,
+            'buku-tamu' => App\Http\Middleware\PastikanBukuTamuTerisi::class,
         ]);
 
         // F-1.4: setiap permintaan terautentikasi diperiksa keaktifan akunnya.
