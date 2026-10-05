@@ -1,0 +1,151 @@
+# ============================================================
+#  Perpustakaan Digital Kejaksaan Tinggi Jawa Barat
+#  Berkas yang TIDAK boleh masuk repositori.
+# ============================================================
+
+# ------------------------------------------------------------
+# 1. RAHASIA — kunci API, token, kata sandi
+#    JANGAN PERNAH hapus bagian ini.
+#    Yang boleh naik hanya berkas *.env.example (tanpa nilai asli).
+# ------------------------------------------------------------
+.env
+.env.*
+!.env.example
+*.env
+!*.env.example
+
+# Kunci dan sertifikat
+*.key
+*.pem
+*.p12
+*.pfx
+*.crt
+*.cer
+*.jks
+*.keystore
+id_rsa*
+id_ed25519*
+
+# Berkas kredensial lain
+auth.json
+credentials.json
+secrets.json
+*secret*
+*credential*
+.htpasswd
+
+# ------------------------------------------------------------
+# 2. DATA INSTANSI — dokumen asli, sampul, basis data
+#    Berkas PDF milik Kejaksaan tidak boleh keluar dari peladen.
+# ------------------------------------------------------------
+Perpustakaan-kejaksaan/storage/app/private/
+Perpustakaan-kejaksaan/storage/app/public/
+Perpustakaan-kejaksaan/storage/app/livewire-tmp/
+!Perpustakaan-kejaksaan/storage/app/**/.gitignore
+
+# Cadangan dan hasil ekspor basis data
+*.sql
+*.sqlite
+*.sqlite3
+*.dump
+*.bak
+backup/
+cadangan/
+
+# Hasil ekspor log audit / buku tamu (memuat data pribadi)
+log-audit-*.csv
+buku-tamu-*.csv
+
+# ------------------------------------------------------------
+# 3. PERKAKAS AI / ASISTEN KODE — tidak ikut ke repositori
+# ------------------------------------------------------------
+.claude/
+CLAUDE.md
+.claude.json
+.mcp.json
+.cursor/
+.cursorrules
+.aider*
+.github/copilot-instructions.md
+scratchpad/
+
+# Draf laporan kerja praktek (memuat data pribadi yang belum dilengkapi)
+LAPORAN-KP-DRAFT.md
+LAPORAN-KP-*.docx
+
+# ------------------------------------------------------------
+# 4. DEPENDENSI — dipasang ulang lewat composer / npm / pip
+# ------------------------------------------------------------
+/vendor/
+**/vendor/
+node_modules/
+**/node_modules/
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Model embedding yang terunduh otomatis (±1 GB).
+# Dibatasi ke ai-service saja: pada macOS pola tanpa lintasan juga
+# mencocokkan app/Models/ karena huruf besar-kecil tidak dibedakan.
+/ai-service/.cache/
+/ai-service/models/
+*.safetensors
+*.onnx
+
+# ------------------------------------------------------------
+# 5. HASIL BUILD & CACHE
+# ------------------------------------------------------------
+/Perpustakaan-kejaksaan/public/build/
+/Perpustakaan-kejaksaan/public/hot
+/Perpustakaan-kejaksaan/public/storage
+/Perpustakaan-kejaksaan/public/pdfjs-wasm/
+/Perpustakaan-kejaksaan/public/fonts-manifest.dev.json
+/Perpustakaan-kejaksaan/bootstrap/cache/*.php
+.phpunit.result.cache
+.phpunit.cache/
+_ide_helper.php
+.phpactor.json
+
+# ------------------------------------------------------------
+# 6. LOG & BERKAS SEMENTARA
+# ------------------------------------------------------------
+*.log
+logs/
+Perpustakaan-kejaksaan/storage/logs/*.log
+Perpustakaan-kejaksaan/storage/framework/cache/*
+Perpustakaan-kejaksaan/storage/framework/sessions/*
+Perpustakaan-kejaksaan/storage/framework/views/*
+Perpustakaan-kejaksaan/storage/framework/testing/*
+Perpustakaan-kejaksaan/storage/pail/
+!Perpustakaan-kejaksaan/storage/**/.gitignore
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# ------------------------------------------------------------
+# 7. SISTEM OPERASI & EDITOR
+# ------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+Thumbs.db
+ehthumbs.db
+desktop.ini
+.idea/
+.vscode/
+.zed/
+.nova/
+.fleet/
+*.sublime-project
+*.sublime-workspace
+Homestead.json
+Homestead.yaml
